@@ -7,12 +7,12 @@ import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAvQosHifOFNhsituKKyV8469e7APg-0Qg",
-  authDomain: "water-intake-tracker-c8709.firebaseapp.com",
-  projectId: "water-intake-tracker-c8709",
-  storageBucket: "water-intake-tracker-c8709.appspot.com",
-  messagingSenderId: "1090644987511",
-  appId: "1:1090644987511:web:1ef4085e72b1946b47c072"
+  apiKey: "",
+  authDomain: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
 };
 
 // Initialize Firebase
