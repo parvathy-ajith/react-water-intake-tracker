@@ -3,31 +3,39 @@ import { db, auth } from '../../config/firebase';
 import { collection, query, where, orderBy, limit, startAfter, endBefore, limitToLast, doc, updateDoc, deleteDoc, onSnapshot, getCountFromServer } from 'firebase/firestore';
 import SearchIntakes from "./SearchIntakes";
 import checkAuth from '../../components/authorize/checkAuth';
+import Button from 'react-bootstrap/Button';
+import Modal from 'react-bootstrap/Modal';
+
 
 const PAGE_SIZE = 3; // Number of items per page
 
-const Home=()=> {
+const Home = () => {
     const editingItemIntakeRef = useRef();
 
     const [entries, setEntries] = useState([]);
     const [editingItem, setEditingItem] = useState({});
     const [totalPages, setTotalPages] = useState(0);
     const [page, setPage] = useState(1);
+    const [show, setShow] = useState(false);
+
+    const handleClose = () => setShow(false);
+    const handleShow = () => setShow(true);
+
 
     const intakeCollectionRef = collection(db, "water-intakes");
-    const totalPageQuery=query(intakeCollectionRef,
+    const totalPageQuery = query(intakeCollectionRef,
         where("userId", "==", auth.currentUser?.uid || ""));
 
     useEffect(() => {
-        getCountFromServer(totalPageQuery).then((querySnapshot)=>{
-            let totalDocCount=querySnapshot.data().count;
-            setTotalPages(Math.ceil(totalDocCount/PAGE_SIZE));
+        getCountFromServer(totalPageQuery).then((querySnapshot) => {
+            let totalDocCount = querySnapshot.data().count;
+            setTotalPages(Math.ceil(totalDocCount / PAGE_SIZE));
         })
 
         const entriesListQuery = query(intakeCollectionRef,
             where("userId", "==", auth.currentUser?.uid || ""),
             orderBy("entryDate"),
-            limit(PAGE_SIZE));    
+            limit(PAGE_SIZE));
 
         onSnapshot(entriesListQuery, (querySnapshot) => {
             setEntries(querySnapshot.docs.map(doc => ({
@@ -57,35 +65,35 @@ const Home=()=> {
         }
     };
     const showPrevious = ({ item }) => {
-        if(item){
-        const entriesListQuery = query(intakeCollectionRef,
-            where("userId", "==", auth.currentUser?.uid || ""),
-            orderBy("entryDate"),
-            endBefore(item.entryDate),
-            limitToLast(PAGE_SIZE));
+        if (item) {
+            const entriesListQuery = query(intakeCollectionRef,
+                where("userId", "==", auth.currentUser?.uid || ""),
+                orderBy("entryDate"),
+                endBefore(item.entryDate),
+                limitToLast(PAGE_SIZE));
 
-        onSnapshot(entriesListQuery, (querySnapshot) => {
-            setEntries(querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })));
-            setPage(page - 1)
-        });
-    }else{  
-            
-        const entriesListQuery = query(intakeCollectionRef,
-            where("userId", "==", auth.currentUser?.uid || ""),
-            orderBy("entryDate"),
-            limitToLast(PAGE_SIZE));
+            onSnapshot(entriesListQuery, (querySnapshot) => {
+                setEntries(querySnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                })));
+                setPage(page - 1)
+            });
+        } else {
 
-        onSnapshot(entriesListQuery, (querySnapshot) => {
-            setEntries(querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })));
-            setPage(page - 1)
-        });
-    }
+            const entriesListQuery = query(intakeCollectionRef,
+                where("userId", "==", auth.currentUser?.uid || ""),
+                orderBy("entryDate"),
+                limitToLast(PAGE_SIZE));
+
+            onSnapshot(entriesListQuery, (querySnapshot) => {
+                setEntries(querySnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                })));
+                setPage(page - 1)
+            });
+        }
     };
 
 
@@ -104,7 +112,7 @@ const Home=()=> {
 
     const handleSaveItem = () => {
         let editedIntake = parseInt(editingItemIntakeRef.current.value);
-        if (editedIntake > 0) {
+        if (editedIntake >= 0) {
             const updatedItems = entries.map((item) => {
                 if (item.id === editingItem.id) {
                     return { ...item, intake: editedIntake };
@@ -112,7 +120,6 @@ const Home=()=> {
                 return item;
             });
             setEntries(updatedItems);
-
 
             const intakeDocRef = doc(db, 'water-intakes', editingItem.id)
             updateDoc(intakeDocRef, {
@@ -138,12 +145,14 @@ const Home=()=> {
         const intakeDocRef = doc(db, 'water-intakes', id);
         deleteDoc(intakeDocRef).then(() => {
             console.log("Deleted from Firebase");
-            getCountFromServer(totalPageQuery).then((querySnapshot)=>{
-                let totalDocCount=querySnapshot.data().count;
-                setTotalPages(Math.ceil(totalDocCount/PAGE_SIZE));
+            getCountFromServer(totalPageQuery).then((querySnapshot) => {
+                let totalDocCount = querySnapshot.data().count;
+                setEntries(filteredItems);
+                setTotalPages(Math.ceil(totalDocCount / PAGE_SIZE));
+                handleClose();
             })
         }).catch((e) => {
-            console.log(e)
+            console.log(e);
         })
     };
 
@@ -194,7 +203,18 @@ const Home=()=> {
                                     ) : (
                                         <>
                                             <button className='btn btn-outline-warning me-3' onClick={() => handleEditItem(entry)}>Edit</button>
-                                            <button className='btn btn-outline-danger me-3' onClick={() => handleDelete(entry.id)}>Delete</button>
+                                            <button className='btn btn-outline-danger me-3' onClick={handleShow} > Delete</button>
+
+                                            <Modal show={show} onHide={handleClose}>
+                                                <Modal.Header closeButton>
+                                                    <Modal.Title>Delete Confirmation</Modal.Title>
+                                                </Modal.Header>
+                                                <Modal.Body>Are you sure you want to delete the entry on {convertTimestamp(entry.entryDate)}? </Modal.Body>
+                                                <Modal.Footer>
+                                                    <Button variant="secondary" onClick={handleClose}>Cancel Delete</Button>
+                                                    <Button variant="danger" onClick={() => handleDelete(entry.id)}>Delete</Button>
+                                                </Modal.Footer>
+                                            </Modal>
                                         </>
                                     )}
                                 </td>
@@ -205,7 +225,7 @@ const Home=()=> {
                     {
                         //show previous button only when we have items
                         page === 1 ? '' :
-                            <button className='btn btn-secondary me-3' onClick={() => showPrevious({ item: entries? entries[0] : null  })}>Previous</button>
+                            <button className='btn btn-secondary me-3' onClick={() => showPrevious({ item: entries ? entries[0] : null })}>Previous</button>
                     }
                     {
                         //show next button only when we have items
